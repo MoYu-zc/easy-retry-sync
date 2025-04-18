@@ -1,7 +1,11 @@
 package com.alibaba.easyretry.extension.spring.aop;
 
-import java.lang.reflect.Method;
-import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.context.ApplicationContext;
 
 import com.alibaba.easyretry.common.RetryConfiguration;
 import com.alibaba.easyretry.common.RetryIdentify;
@@ -10,12 +14,6 @@ import com.alibaba.easyretry.core.RetryerBuilder;
 import com.alibaba.easyretry.extension.spring.SPELResultPredicate;
 
 import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.context.ApplicationContext;
 
 @Aspect
 public class RetryInterceptor {
@@ -44,7 +42,7 @@ public class RetryInterceptor {
 	private Retryer<Object> determineTargetRetryer(ProceedingJoinPoint invocation, EasyRetryable retryable) {
 		MethodSignature signature = (MethodSignature)invocation.getSignature();
 		RetryerBuilder<Object> retryerBuilder = new RetryerBuilder<Object>()
-			.withExecutorName(getBeanId(signature.getDeclaringType()))
+			.withExecutorName(getBeanId(invocation.getThis().getClass()))
 			.withExecutorMethodName(signature.getMethod().getName())
 			.withArgs(invocation.getArgs())
 			.withConfiguration(retryConfiguration)
