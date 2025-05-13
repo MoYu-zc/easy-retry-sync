@@ -1,5 +1,11 @@
 package com.alibaba.easyretry.extension.spring.aop;
 
+import com.alibaba.easyretry.common.RetryConfiguration;
+import com.alibaba.easyretry.common.RetryIdentify;
+import com.alibaba.easyretry.common.retryer.Retryer;
+import com.alibaba.easyretry.core.RetryerBuilder;
+import com.alibaba.easyretry.extension.spring.SPELResultPredicate;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -10,14 +16,6 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
-
-import com.alibaba.easyretry.common.RetryConfiguration;
-import com.alibaba.easyretry.common.RetryIdentify;
-import com.alibaba.easyretry.common.retryer.Retryer;
-import com.alibaba.easyretry.core.RetryerBuilder;
-import com.alibaba.easyretry.extension.spring.SPELResultPredicate;
-
-import lombok.Setter;
 
 @Aspect
 public class RetryInterceptor {
@@ -71,7 +69,7 @@ public class RetryInterceptor {
 				return name;
 			}
 		}
-		return null;
+		throw new IllegalStateException("bean name is not found");
 	}
 
 	private Object getUltimateTarget(Object candidate) {
