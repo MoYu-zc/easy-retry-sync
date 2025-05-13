@@ -5,7 +5,11 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.aop.framework.Advised;
+import org.springframework.aop.support.AopUtils;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
 
 import com.alibaba.easyretry.common.RetryConfiguration;
 import com.alibaba.easyretry.common.RetryIdentify;
@@ -34,15 +38,10 @@ public class RetryInterceptor {
 		return retryer.call(invocation::proceed);
 	}
 
-	private String getBeanId(Class<?> type) {
-		String[] names = applicationContext.getBeanNamesForType(type);
-		return names.length > 0 ? names[0] : null;
-	}
-
 	private Retryer<Object> determineTargetRetryer(ProceedingJoinPoint invocation, EasyRetryable retryable) {
 		MethodSignature signature = (MethodSignature)invocation.getSignature();
 		RetryerBuilder<Object> retryerBuilder = new RetryerBuilder<Object>()
-			.withExecutorName(getBeanId(invocation.getThis().getClass()))
+			.withExecutorName(getBeanName(invocation))
 			.withExecutorMethodName(signature.getMethod().getName())
 			.withArgs(invocation.getArgs())
 			.withConfiguration(retryConfiguration)
@@ -52,5 +51,43 @@ public class RetryInterceptor {
 		}
 
 		return retryerBuilder.build(retryable.retryType());
+	}
+
+	private String getBeanName(ProceedingJoinPoint invocation) {
+		Object beanInstance = getUltimateTarget(invocation.getTarget());
+		if (beanInstance == null) {
+			throw new IllegalStateException("bean instance is null");
+		}
+		String[] beanNames = applicationContext.getBeanNamesForType(beanInstance.getClass());
+
+		ConfigurableListableBeanFactory beanFactory = ((ConfigurableApplicationContext) applicationContext).getBeanFactory();
+		for (String name : beanNames) {
+			if (beanFactory.getBeanDefinition(name).isPrototype()) {
+				throw new IllegalStateException("prototype scope is not support, className: " + name);
+			}
+			Object bean = applicationContext.getBean(name);
+			Object targetObject = getUltimateTarget(bean);
+			if (beanInstance == targetObject) {
+				return name;
+			}
+		}
+		return null;
+	}
+
+	private Object getUltimateTarget(Object candidate) {
+		Object current = candidate;
+		while (AopUtils.isAopProxy(current)) {
+			try {
+				if (current instanceof Advised) {
+					Advised advised = (Advised) current;
+					current = advised.getTargetSource().getTarget();
+				} else {
+					break;
+				}
+			} catch (Exception e) {
+				throw new IllegalStateException("Failed to unwrap proxy target", e);
+			}
+		}
+		return current;
 	}
 }
